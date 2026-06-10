@@ -55,3 +55,26 @@ Run it, building first if needed:
 ```sh
 ./scripts/run.sh
 ```
+
+## Login Item
+
+Use the `Start at login` toggle at the bottom of the popup to register or unregister the app with macOS Login Items. This uses Apple's `SMAppService.mainApp` API, so the setting is also visible in System Settings under Login Items.
+
+## Bartender
+
+Bartender does not expose a documented push-style API for another app to tell it "show this menu item now." The practical integration is a Bartender AppleScript trigger that polls this app's local state file:
+
+`~/.cache/mac-appbar/bartender-state.json`
+
+MacAppBar writes `needs_attention: true` when a build is running, fails, errors, or when the tracked deployment status changes. The menu bar icon also changes from `a.circle` to `a.circle.fill` until `Mark Seen` is clicked.
+
+Use this AppleScript as a Bartender trigger condition:
+
+```applescript
+try
+	set stateJSON to do shell script "/usr/bin/python3 - <<'PY'\nimport json\nfrom pathlib import Path\npath = Path.home() / '.cache/mac-appbar/bartender-state.json'\nprint('true' if path.exists() and json.loads(path.read_text()).get('needs_attention') else 'false')\nPY"
+	return stateJSON is "true"
+on error
+	return false
+end try
+```

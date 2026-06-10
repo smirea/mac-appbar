@@ -7,11 +7,23 @@ final class DeploymentDashboard: ObservableObject {
     @Published var isRefreshing = false
     @Published var lastUpdated: Date?
     @Published var notice: String?
+    @Published var launchAtLogin: Bool
+    @Published var loginItemMessage: String?
+    @Published var needsAttention: Bool
 
     private let apps = TrackedApp.apps
+    private let bartenderState = BartenderStateStore()
+    private let lastSignatureKey = "lastStatusSignature"
+
+    var menuBarSystemImage: String {
+        needsAttention ? "a.circle.fill" : "a.circle"
+    }
 
     init() {
         rows = apps.map { AppRowState(app: $0, snapshot: nil, error: nil, isStartingBuild: false) }
+        launchAtLogin = LoginItemController.isEnabled
+        needsAttention = bartenderState.readNeedsAttention()
+        Task { await startPolling() }
     }
 
     func refresh() async {
@@ -31,6 +43,7 @@ final class DeploymentDashboard: ObservableObject {
         }
         rows = nextRows
         lastUpdated = Date()
+        updateAttentionState(from: nextRows)
     }
 
     func startBuild(for app: TrackedApp) async {
@@ -53,11 +66,60 @@ final class DeploymentDashboard: ObservableObject {
         NSWorkspace.shared.open(URL(fileURLWithPath: app.repositoryPath))
     }
 
+    func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            try LoginItemController.setEnabled(enabled)
+            launchAtLogin = LoginItemController.isEnabled
+            loginItemMessage = enabled ? "Starts at login" : "Removed from login items"
+        } catch {
+            launchAtLogin = LoginItemController.isEnabled
+            loginItemMessage = error.localizedDescription
+        }
+    }
+
+    func syncLaunchAtLogin() {
+        launchAtLogin = LoginItemController.isEnabled
+    }
+
+    func markSeen() {
+        needsAttention = false
+        bartenderState.write(needsAttention: false, rows: rows)
+    }
+
+    private func startPolling() async {
+        await refresh()
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(300))
+            await refresh()
+        }
+    }
+
     private func updateRow(_ app: TrackedApp, _ mutate: (inout AppRowState) -> Void) {
         guard let index = rows.firstIndex(where: { $0.app.id == app.id }) else {
             return
         }
         mutate(&rows[index])
+    }
+
+    private func updateAttentionState(from rows: [AppRowState]) {
+        let signature = rows.map(\.statusSignature).joined(separator: "|")
+        let previous = UserDefaults.standard.string(forKey: lastSignatureKey)
+        let changed = previous != nil && previous != signature
+        let hasProblem = rows.contains { row in
+            if row.error != nil {
+                return true
+            }
+            guard let snapshot = row.snapshot else {
+                return false
+            }
+            return snapshot.statusColor == .red || snapshot.statusColor == .yellow
+        }
+
+        if changed || hasProblem {
+            needsAttention = true
+        }
+        UserDefaults.standard.set(signature, forKey: lastSignatureKey)
+        bartenderState.write(needsAttention: needsAttention, rows: rows)
     }
 }
 
@@ -67,6 +129,16 @@ struct AppRowState: Identifiable {
     var snapshot: AppBuildSnapshot?
     var error: String?
     var isStartingBuild: Bool
+
+    var statusSignature: String {
+        [
+            app.id,
+            snapshot?.buildNumber.map(String.init) ?? "-",
+            snapshot?.status ?? "-",
+            snapshot?.appStoreBuildState ?? "-",
+            error ?? "-",
+        ].joined(separator: ":")
+    }
 }
 
 struct DeploymentDashboardView: View {
@@ -96,11 +168,32 @@ struct DeploymentDashboardView: View {
 
             Divider()
 
+            Toggle("Start at login", isOn: Binding(
+                get: { model.launchAtLogin },
+                set: { model.setLaunchAtLogin($0) }
+            ))
+            .onAppear {
+                model.syncLaunchAtLogin()
+            }
+
+            if let loginItemMessage = model.loginItemMessage {
+                Text(loginItemMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+
             HStack {
                 Button("Refresh") {
                     Task { await model.refresh() }
                 }
                 .disabled(model.isRefreshing)
+
+                if model.needsAttention {
+                    Button("Mark Seen") {
+                        model.markSeen()
+                    }
+                }
 
                 Spacer()
 
@@ -111,11 +204,6 @@ struct DeploymentDashboardView: View {
             }
         }
         .padding(16)
-        .task {
-            if model.lastUpdated == nil {
-                await model.refresh()
-            }
-        }
     }
 
     private var header: some View {

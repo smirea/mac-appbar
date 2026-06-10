@@ -6,9 +6,11 @@ struct MacAppBarApp: App {
     @StateObject private var dashboard = DeploymentDashboard()
 
     var body: some Scene {
-        MenuBarExtra("MacAppBar", systemImage: "a.circle") {
+        MenuBarExtra {
             DeploymentDashboardView(model: dashboard)
                 .frame(width: 460)
+        } label: {
+            Label("MacAppBar", systemImage: dashboard.menuBarSystemImage)
         }
         .menuBarExtraStyle(.window)
     }
