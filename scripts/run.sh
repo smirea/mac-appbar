@@ -9,8 +9,17 @@ executable_path="$bundle_path/Contents/MacOS/$app_name"
 
 cd "$repo_root"
 
+process_pattern="[M]acAppBar.app/Contents/MacOS/$app_name"
+pkill -f "$process_pattern" 2>/dev/null || true
+for _ in {1..20}; do
+    if ! pgrep -f "$process_pattern" >/dev/null; then
+        break
+    fi
+    sleep 0.1
+done
+
 if [[ ! -x "$executable_path" ]]; then
     "$script_dir/build-app.sh"
 fi
 
-"$executable_path" >/dev/null 2>&1 &
+open -n "$bundle_path"
