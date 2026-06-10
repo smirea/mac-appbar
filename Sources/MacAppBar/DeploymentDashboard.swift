@@ -73,6 +73,10 @@ final class DeploymentDashboard: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
+    func openXcodeCloudBuild(_ urlString: String?) {
+        openAppStoreConnect(urlString)
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
             try LoginItemController.setEnabled(enabled)
@@ -190,6 +194,9 @@ struct DeploymentDashboardView: View {
                     onStart: {
                         Task { await model.startBuild(for: row.app) }
                     },
+                    onOpenBuild: {
+                        model.openXcodeCloudBuild(row.snapshot?.xcodeCloudBuildURL)
+                    },
                     onOpenAppStoreConnect: {
                         model.openAppStoreConnect(row.snapshot?.appStoreConnectURL)
                     },
@@ -281,6 +288,7 @@ struct DeploymentDashboardView: View {
 struct AppStatusRow: View {
     let row: AppRowState
     let onStart: () -> Void
+    let onOpenBuild: () -> Void
     let onOpenAppStoreConnect: () -> Void
     let onOpenRepository: () -> Void
 
@@ -364,14 +372,7 @@ struct AppStatusRow: View {
     private var buildSummary: some View {
         if let snapshot = row.snapshot {
             VStack(alignment: .trailing, spacing: 2) {
-                HStack(spacing: 5) {
-                    Text(snapshot.status)
-                        .fontWeight(.semibold)
-                    if let buildNumber = snapshot.buildNumber {
-                        Text("#\(buildNumber)")
-                            .monospacedDigit()
-                    }
-                }
+                statusBuildSummary(snapshot)
 
                 if let date = snapshot.finishedDate ?? snapshot.startedDate ?? snapshot.createdDate {
                     Text(dateText(date))
@@ -391,6 +392,32 @@ struct AppStatusRow: View {
             Text("Loading")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func statusBuildSummary(_ snapshot: AppBuildSnapshot) -> some View {
+        if snapshot.xcodeCloudBuildURL != nil {
+            Button {
+                onOpenBuild()
+            } label: {
+                statusBuildText(snapshot)
+            }
+            .buttonStyle(.plain)
+            .help("Open Xcode Cloud build")
+        } else {
+            statusBuildText(snapshot)
+        }
+    }
+
+    private func statusBuildText(_ snapshot: AppBuildSnapshot) -> some View {
+        HStack(spacing: 5) {
+            Text(snapshot.status)
+                .fontWeight(.semibold)
+            if let buildNumber = snapshot.buildNumber {
+                Text("#\(buildNumber)")
+                    .monospacedDigit()
+            }
         }
     }
 

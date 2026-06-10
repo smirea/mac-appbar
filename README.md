@@ -4,7 +4,7 @@ A macOS menu bar dashboard for deployment status.
 
 The app tracks App Store deployment/build health for apps built through Xcode Cloud. The first tracked app is Memeforge, whose source lives at `/Users/stefan/code/ios-keyboard` and whose GitHub remote is `smirea/memeforge`.
 
-Clicking the monochrome App Store compass icon opens a compact deployment popup with the latest Xcode Cloud status, build number, build date, App Store build processing state when available, workflow rules, a trigger-build button, and an App Store Connect shortcut.
+Clicking the monochrome App Store compass icon opens a compact deployment popup with the latest Xcode Cloud status, build number, build date, App Store build processing state when available, workflow rules, a clickable Xcode Cloud build summary, a trigger-build button, and an App Store Connect shortcut.
 
 ## Infrastructure
 

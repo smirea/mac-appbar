@@ -107,6 +107,7 @@ struct AppBuildSnapshot: Sendable {
     let appStoreBuildVersion: String?
     let appStoreBuildState: String?
     let appStoreConnectURL: String?
+    let xcodeCloudBuildURL: String?
     let rules: [String]
 }
 
@@ -137,7 +138,8 @@ struct AppStoreConnectClient: Sendable {
         let workflowName = workflowAttributes["name"] as? String ?? "Xcode Cloud"
         let isEnabled = workflowAttributes["isEnabled"] as? Bool ?? true
         let rules = workflowRules(from: workflowAttributes)
-        let appStoreConnectURL = await appStoreConnectURL(from: workflowPayload)
+        let appStoreConnectAppID = await appStoreConnectAppID(from: workflowPayload)
+        let appStoreConnectURL = appStoreConnectAppID.map { "https://appstoreconnect.apple.com/apps/\($0)/appstore" }
 
         let runsPayload = try await request(path: "/v1/ciWorkflows/\(app.xcodeCloudWorkflowID)/buildRuns?limit=1&sort=-number&include=builds,sourceBranchOrTag")
         let runs = runsPayload["data"] as? [[String: Any]] ?? []
@@ -156,6 +158,7 @@ struct AppStoreConnectClient: Sendable {
                 appStoreBuildVersion: nil,
                 appStoreBuildState: nil,
                 appStoreConnectURL: appStoreConnectURL,
+                xcodeCloudBuildURL: nil,
                 rules: rules
             )
         }
@@ -167,6 +170,7 @@ struct AppStoreConnectClient: Sendable {
             included: runsPayload["included"] as? [[String: Any]] ?? [],
             fallbackBranch: app.defaultBranch,
             appStoreConnectURL: appStoreConnectURL,
+            appStoreConnectAppID: appStoreConnectAppID,
             rules: rules
         )
     }
@@ -310,6 +314,7 @@ struct AppStoreConnectClient: Sendable {
         included: [[String: Any]],
         fallbackBranch: String,
         appStoreConnectURL: String?,
+        appStoreConnectAppID: String?,
         rules: [String]
     ) -> AppBuildSnapshot {
         let attributes = run["attributes"] as? [String: Any] ?? [:]
@@ -318,6 +323,7 @@ struct AppStoreConnectClient: Sendable {
         let status = statusText(progress: progress, completion: completion)
         let sourceID = relationshipID(named: "sourceBranchOrTag", in: run)
         let buildID = firstRelationshipID(named: "builds", in: run)
+        let runID = run["id"] as? String
         let source = included.first { $0["type"] as? String == "scmGitReferences" && $0["id"] as? String == sourceID }
         let build = included.first { $0["type"] as? String == "builds" && $0["id"] as? String == buildID }
         let buildAttributes = build?["attributes"] as? [String: Any] ?? [:]
@@ -336,11 +342,12 @@ struct AppStoreConnectClient: Sendable {
             appStoreBuildVersion: buildAttributes["version"] as? String,
             appStoreBuildState: buildAttributes["processingState"] as? String,
             appStoreConnectURL: appStoreConnectURL,
+            xcodeCloudBuildURL: xcodeCloudBuildURL(appID: appStoreConnectAppID, runID: runID),
             rules: rules
         )
     }
 
-    private func appStoreConnectURL(from workflowPayload: [String: Any]) async -> String? {
+    private func appStoreConnectAppID(from workflowPayload: [String: Any]) async -> String? {
         guard let included = workflowPayload["included"] as? [[String: Any]],
               let product = included.first(where: { $0["type"] as? String == "ciProducts" }),
               let relationships = product["relationships"] as? [String: Any],
@@ -352,7 +359,14 @@ struct AppStoreConnectClient: Sendable {
               let appID = data["id"] as? String else {
             return nil
         }
-        return "https://appstoreconnect.apple.com/apps/\(appID)/appstore"
+        return appID
+    }
+
+    private func xcodeCloudBuildURL(appID: String?, runID: String?) -> String? {
+        guard let appID, let runID else {
+            return nil
+        }
+        return "https://appstoreconnect.apple.com/apps/\(appID)/ci/builds/\(runID)"
     }
 
     private func firstRelationshipID(named name: String, in resource: [String: Any]) -> String? {
