@@ -102,9 +102,11 @@ struct AppBuildSnapshot: Sendable {
     let branch: String?
     let startReason: String?
     let createdDate: Date?
+    let startedDate: Date?
     let finishedDate: Date?
     let appStoreBuildVersion: String?
     let appStoreBuildState: String?
+    let appStoreConnectURL: String?
     let rules: [String]
 }
 
@@ -135,6 +137,7 @@ struct AppStoreConnectClient: Sendable {
         let workflowName = workflowAttributes["name"] as? String ?? "Xcode Cloud"
         let isEnabled = workflowAttributes["isEnabled"] as? Bool ?? true
         let rules = workflowRules(from: workflowAttributes)
+        let appStoreConnectURL = await appStoreConnectURL(from: workflowPayload)
 
         let runsPayload = try await request(path: "/v1/ciWorkflows/\(app.xcodeCloudWorkflowID)/buildRuns?limit=1&sort=-number&include=builds,sourceBranchOrTag")
         let runs = runsPayload["data"] as? [[String: Any]] ?? []
@@ -143,14 +146,16 @@ struct AppStoreConnectClient: Sendable {
                 workflowName: workflowName,
                 workflowEnabled: isEnabled,
                 buildNumber: nil,
-                status: "No builds yet",
+                status: "None",
                 statusColor: .gray,
                 branch: app.defaultBranch,
                 startReason: nil,
                 createdDate: nil,
+                startedDate: nil,
                 finishedDate: nil,
                 appStoreBuildVersion: nil,
                 appStoreBuildState: nil,
+                appStoreConnectURL: appStoreConnectURL,
                 rules: rules
             )
         }
@@ -161,6 +166,7 @@ struct AppStoreConnectClient: Sendable {
             run: run,
             included: runsPayload["included"] as? [[String: Any]] ?? [],
             fallbackBranch: app.defaultBranch,
+            appStoreConnectURL: appStoreConnectURL,
             rules: rules
         )
     }
@@ -303,6 +309,7 @@ struct AppStoreConnectClient: Sendable {
         run: [String: Any],
         included: [[String: Any]],
         fallbackBranch: String,
+        appStoreConnectURL: String?,
         rules: [String]
     ) -> AppBuildSnapshot {
         let attributes = run["attributes"] as? [String: Any] ?? [:]
@@ -324,11 +331,28 @@ struct AppStoreConnectClient: Sendable {
             branch: (source?["attributes"] as? [String: Any])?["name"] as? String ?? fallbackBranch,
             startReason: attributes["startReason"] as? String,
             createdDate: date(attributes["createdDate"] as? String),
+            startedDate: date(attributes["startedDate"] as? String),
             finishedDate: date(attributes["finishedDate"] as? String),
             appStoreBuildVersion: buildAttributes["version"] as? String,
             appStoreBuildState: buildAttributes["processingState"] as? String,
+            appStoreConnectURL: appStoreConnectURL,
             rules: rules
         )
+    }
+
+    private func appStoreConnectURL(from workflowPayload: [String: Any]) async -> String? {
+        guard let included = workflowPayload["included"] as? [[String: Any]],
+              let product = included.first(where: { $0["type"] as? String == "ciProducts" }),
+              let relationships = product["relationships"] as? [String: Any],
+              let app = relationships["app"] as? [String: Any],
+              let links = app["links"] as? [String: Any],
+              let related = links["related"] as? String,
+              let appPayload = try? await request(pathOrURL: related),
+              let data = appPayload["data"] as? [String: Any],
+              let appID = data["id"] as? String else {
+            return nil
+        }
+        return "https://appstoreconnect.apple.com/apps/\(appID)/appstore"
     }
 
     private func firstRelationshipID(named name: String, in resource: [String: Any]) -> String? {
@@ -343,9 +367,6 @@ struct AppStoreConnectClient: Sendable {
         if let condition = attributes["scheduledStartCondition"] as? [String: Any] {
             rules.append(scheduleRule(condition))
         }
-        if let condition = attributes["manualBranchStartCondition"] as? [String: Any] {
-            rules.append("Manual build: \(branchDescription(condition["source"]))")
-        }
         if let condition = attributes["branchStartCondition"] as? [String: Any] {
             rules.append("Branch changes: \(branchDescription(condition["source"]))")
         }
@@ -354,9 +375,7 @@ struct AppStoreConnectClient: Sendable {
                 guard let type = action["actionType"] as? String else {
                     continue
                 }
-                if type == "ARCHIVE", let audience = action["buildDistributionAudience"] as? String {
-                    rules.append("Archive: \(display(audience))")
-                } else {
+                if type != "ARCHIVE" {
                     rules.append("\(display(type)): \(action["scheme"] as? String ?? "scheme")")
                 }
             }
@@ -413,7 +432,15 @@ struct AppStoreConnectClient: Sendable {
         guard let value else {
             return nil
         }
-        return ISO8601DateFormatter().date(from: value)
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractionalFormatter.date(from: value) {
+            return date
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: value)
     }
 
     private func display(_ value: String) -> String {

@@ -66,6 +66,13 @@ final class DeploymentDashboard: ObservableObject {
         NSWorkspace.shared.open(URL(fileURLWithPath: app.repositoryPath))
     }
 
+    func openAppStoreConnect(_ urlString: String?) {
+        guard let urlString, let url = URL(string: urlString) else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
             try LoginItemController.setEnabled(enabled)
@@ -183,6 +190,9 @@ struct DeploymentDashboardView: View {
                     onStart: {
                         Task { await model.startBuild(for: row.app) }
                     },
+                    onOpenAppStoreConnect: {
+                        model.openAppStoreConnect(row.snapshot?.appStoreConnectURL)
+                    },
                     onOpenRepository: {
                         model.openRepository(row.app)
                     }
@@ -271,12 +281,14 @@ struct DeploymentDashboardView: View {
 struct AppStatusRow: View {
     let row: AppRowState
     let onStart: () -> Void
+    let onOpenAppStoreConnect: () -> Void
     let onOpenRepository: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
                 statusDot
+                    .padding(.top, 5)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.app.name)
@@ -287,6 +299,10 @@ struct AppStatusRow: View {
                 }
 
                 Spacer()
+
+                buildSummary
+                    .frame(minWidth: 112, alignment: .trailing)
+                    .padding(.top, 1)
 
                 Button {
                     onStart()
@@ -299,8 +315,17 @@ struct AppStatusRow: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .help("Start Xcode Cloud build")
+                .help("Trigger build")
                 .disabled(row.isStartingBuild)
+
+                Button {
+                    onOpenAppStoreConnect()
+                } label: {
+                    Image(systemName: "safari")
+                }
+                .buttonStyle(.borderless)
+                .help("Open App Store Connect")
+                .disabled(row.snapshot?.appStoreConnectURL == nil)
 
                 Button {
                     onOpenRepository()
@@ -312,15 +337,11 @@ struct AppStatusRow: View {
             }
 
             if let snapshot = row.snapshot {
-                VStack(alignment: .leading, spacing: 6) {
-                    metadataGrid(snapshot)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        ForEach(snapshot.rules, id: \.self) { rule in
-                            Text(rule)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(snapshot.rules, id: \.self) { rule in
+                        Text(rule)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             } else if let error = row.error {
@@ -337,6 +358,40 @@ struct AppStatusRow: View {
         .padding(12)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var buildSummary: some View {
+        if let snapshot = row.snapshot {
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(snapshot.status)
+                        .fontWeight(.semibold)
+                    if let buildNumber = snapshot.buildNumber {
+                        Text("#\(buildNumber)")
+                            .monospacedDigit()
+                    }
+                }
+
+                if let date = snapshot.finishedDate ?? snapshot.startedDate ?? snapshot.createdDate {
+                    Text(dateText(date))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let appStoreText = appStoreText(snapshot) {
+                    Text(appStoreText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.caption)
+            .lineLimit(1)
+        } else if row.error == nil {
+            Text("Loading")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var statusDot: some View {
@@ -361,39 +416,6 @@ struct AppStatusRow: View {
         }
     }
 
-    private func metadataGrid(_ snapshot: AppBuildSnapshot) -> some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 4) {
-            GridRow {
-                Text("Build")
-                    .foregroundStyle(.secondary)
-                Text(snapshot.buildNumber.map { "#\($0)" } ?? "Unknown")
-            }
-            GridRow {
-                Text("Status")
-                    .foregroundStyle(.secondary)
-                Text(snapshot.status)
-            }
-            GridRow {
-                Text("Date")
-                    .foregroundStyle(.secondary)
-                Text(dateText(snapshot.finishedDate ?? snapshot.createdDate))
-            }
-            GridRow {
-                Text("Branch")
-                    .foregroundStyle(.secondary)
-                Text(snapshot.branch ?? row.app.defaultBranch)
-            }
-            if let version = snapshot.appStoreBuildVersion {
-                GridRow {
-                    Text("App Store")
-                        .foregroundStyle(.secondary)
-                    Text("\(version) \(snapshot.appStoreBuildState ?? "")")
-                }
-            }
-        }
-        .font(.caption)
-    }
-
     private func dateText(_ date: Date?) -> String {
         guard let date else {
             return "Unknown"
@@ -401,10 +423,19 @@ struct AppStatusRow: View {
         return Self.dateFormatter.string(from: date)
     }
 
+    private func appStoreText(_ snapshot: AppBuildSnapshot) -> String? {
+        guard let version = snapshot.appStoreBuildVersion else {
+            return nil
+        }
+        if let state = snapshot.appStoreBuildState, !state.isEmpty {
+            return "\(version) \(state)"
+        }
+        return version
+    }
+
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.setLocalizedDateFormatFromTemplate("MMM d, h:mm a")
         return formatter
     }()
 }
