@@ -312,36 +312,7 @@ struct AppStatusRow: View {
                     .frame(minWidth: 112, alignment: .trailing)
                     .padding(.top, 1)
 
-                Button {
-                    onOpenRepository()
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .buttonStyle(.borderless)
-                .help("Open local repository")
-
-                Button {
-                    onOpenAppStoreConnect()
-                } label: {
-                    Image(systemName: "safari")
-                }
-                .buttonStyle(.borderless)
-                .help("Open App Store Connect")
-                .disabled(row.snapshot?.appStoreConnectURL == nil)
-
-                Button {
-                    onStart()
-                } label: {
-                    if row.isStartingBuild {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "play.fill")
-                    }
-                }
-                .buttonStyle(.bordered)
-                .help("Trigger build")
-                .disabled(row.isStartingBuild)
+                actionButtons
             }
 
             if let snapshot = row.snapshot {
@@ -366,6 +337,41 @@ struct AppStatusRow: View {
         .padding(12)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var actionButtons: some View {
+        VStack(spacing: 5) {
+            Button {
+                onStart()
+            } label: {
+                if row.isStartingBuild {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "play.fill")
+                }
+            }
+            .buttonStyle(.bordered)
+            .help("Trigger build")
+            .disabled(row.isStartingBuild)
+
+            Button {
+                onOpenAppStoreConnect()
+            } label: {
+                Image(systemName: "safari")
+            }
+            .buttonStyle(.borderless)
+            .help("Open App Store Connect")
+            .disabled(row.snapshot?.appStoreConnectURL == nil)
+
+            Button {
+                onOpenRepository()
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.borderless)
+            .help("Open local repository")
+        }
     }
 
     @ViewBuilder
