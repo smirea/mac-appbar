@@ -24,14 +24,17 @@ struct AppStoreConnectCredentials: Sendable {
 
         let keyID = value(["ASC_KEY_ID", "APP_STORE_CONNECT_KEY_ID"])
         let issuerID = value(["ASC_ISSUER_ID", "APP_STORE_CONNECT_ISSUER_ID"])
-        let privateKey = value(["APP_STORE_CONNECT_PRIVATE_KEY"]).map {
+        let privateKeyValue = value(["APP_STORE_CONNECT_PRIVATE_KEY"]).map {
             $0.replacingOccurrences(of: "\\n", with: "\n")
         }
+        let privateKey = privateKeyValue?.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("-----BEGIN") == true
+            ? privateKeyValue
+            : nil
         let keyPath = value([
             "ASC_KEY_PATH",
             "APP_STORE_CONNECT_PRIVATE_KEY_PATH",
             "APP_STORE_CONNECT_API_KEY_PATH",
-        ]) ?? defaultPrivateKeyPath
+        ]) ?? privateKeyValue ?? defaultPrivateKeyPath
 
         var missing: [String] = []
         if keyID == nil {
@@ -41,7 +44,7 @@ struct AppStoreConnectCredentials: Sendable {
             missing.append("APP_STORE_CONNECT_ISSUER_ID")
         }
         if privateKey == nil, keyPath == nil {
-            missing.append("APP_STORE_CONNECT_PRIVATE_KEY_PATH")
+            missing.append("APP_STORE_CONNECT_PRIVATE_KEY")
         }
         if !missing.isEmpty {
             throw AppStoreConnectError.missingCredentials(missing)
@@ -53,7 +56,7 @@ struct AppStoreConnectCredentials: Sendable {
         } else if let keyPath {
             privateKeyPEM = try String(contentsOfFile: (keyPath as NSString).expandingTildeInPath, encoding: .utf8)
         } else {
-            throw AppStoreConnectError.missingCredentials(["APP_STORE_CONNECT_PRIVATE_KEY_PATH"])
+            throw AppStoreConnectError.missingCredentials(["APP_STORE_CONNECT_PRIVATE_KEY"])
         }
 
         return AppStoreConnectCredentials(

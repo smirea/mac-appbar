@@ -2,5 +2,6 @@
 .swiftpm/
 DerivedData/
 *.xcuserdata/
-.env
 .env.*
+secrets/
+*.p8

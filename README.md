@@ -12,6 +12,8 @@ The app uses SwiftUI `MenuBarExtra` with window-style content and builds as a sm
 
 Status and actions come from the App Store Connect API:
 
+- `GET /v1/apps` can discover App Store Connect apps.
+- `GET /v1/ciProducts` can discover Xcode Cloud products.
 - `GET /v1/ciWorkflows/{id}` reads workflow metadata and rules.
 - `GET /v1/ciWorkflows/{id}/buildRuns` reads the latest Xcode Cloud build.
 - `POST /v1/ciBuildRuns` starts a manual Xcode Cloud build.
@@ -21,13 +23,15 @@ The current Memeforge config was pulled from `/Users/stefan/code/ios-keyboard`:
 - Xcode Cloud workflow ID: `8A2FE4FD-B115-4866-A097-B6D5247F8ED0`
 - Default branch: `master`
 - GitHub workflow wrapper: `.github/workflows/testflight-internal.yml`
-- Local default private key path: `/Users/stefan/code/app-store-connect-api-key.p8`
+- Local private key path: `secrets/app-store-connect-api-key.p8`
 
 The GitHub workflow stores `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, and `APP_STORE_CONNECT_PRIVATE_KEY` as GitHub secrets, then calls `scripts/deploy.sh`. GitHub secret values cannot be read back, so the menu bar app needs equivalent App Store Connect credentials configured locally for status polling and manual builds.
 
 ## Local Credentials
 
-This repo is set up as the `mac-appbar` project in `env-manager`. The local env-manager files contain the known Xcode Cloud workflow ID, default branch, and local private-key path. They do not contain the App Store Connect key ID or issuer ID because those values are stored in GitHub secrets for `smirea/memeforge`, and GitHub does not allow reading secret values back.
+This repo is set up as the `mac-appbar` project in `env-manager`. The local env-manager files contain the known Xcode Cloud workflow ID, default branch, and copied private-key file path. `APP_STORE_CONNECT_PRIVATE_KEY` is a required `file` value, so env-manager stores the `.p8` contents in the project secret and recreates the file on `env-manager down`.
+
+The setup still needs the App Store Connect key ID and issuer ID. They are stored in GitHub secrets for `smirea/memeforge`, but GitHub does not allow reading secret values back.
 
 Fill the missing values in `.env.local` or create `~/.config/mac-appbar/app-store-connect.env`:
 
@@ -41,7 +45,7 @@ Use this format:
 ```env
 APP_STORE_CONNECT_KEY_ID=your-key-id
 APP_STORE_CONNECT_ISSUER_ID=your-issuer-id
-APP_STORE_CONNECT_PRIVATE_KEY_PATH=/Users/stefan/code/app-store-connect-api-key.p8
+APP_STORE_CONNECT_PRIVATE_KEY=secrets/app-store-connect-api-key.p8
 ```
 
 Then sync:
@@ -50,7 +54,19 @@ Then sync:
 env-manager up --project mac-appbar
 ```
 
-The app reads the process environment, `~/.config/mac-appbar/app-store-connect.env`, and this repo's `.env.local`. Do not commit App Store Connect keys or private key contents.
+The app reads the process environment, `~/.config/mac-appbar/app-store-connect.env`, and this repo's `.env.local`. `APP_STORE_CONNECT_PRIVATE_KEY` can be either inline PEM contents or a path to the `.p8` file. Do not commit App Store Connect keys or private key contents.
+
+## App Discovery
+
+You do not need a separate App Store Connect API key for every app. A team API key is team-scoped and can cover all apps in that App Store Connect team with the selected role permissions. Create separate keys only when you want a separate role, owner, rotation schedule, or blast radius.
+
+You cannot programmatically recover an existing key's private key or GitHub secret value after it has been created. Apple lets you download the private key once, and GitHub secrets are write-only after upload.
+
+Once credentials are complete, all apps can be discovered through App Store Connect:
+
+- `GET /v1/apps` lists apps.
+- `GET /v1/ciProducts?include=workflows,app` lists Xcode Cloud products and their workflows.
+- `GET /v1/ciProducts/{id}/workflows` lists workflows for one Xcode Cloud product.
 
 Build the app:
 
