@@ -305,6 +305,23 @@ struct AppStatusRow: View {
                     .padding(.top, 1)
 
                 Button {
+                    onOpenRepository()
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.borderless)
+                .help("Open local repository")
+
+                Button {
+                    onOpenAppStoreConnect()
+                } label: {
+                    Image(systemName: "safari")
+                }
+                .buttonStyle(.borderless)
+                .help("Open App Store Connect")
+                .disabled(row.snapshot?.appStoreConnectURL == nil)
+
+                Button {
                     onStart()
                 } label: {
                     if row.isStartingBuild {
@@ -317,23 +334,6 @@ struct AppStatusRow: View {
                 .buttonStyle(.bordered)
                 .help("Trigger build")
                 .disabled(row.isStartingBuild)
-
-                Button {
-                    onOpenAppStoreConnect()
-                } label: {
-                    Image(systemName: "safari")
-                }
-                .buttonStyle(.borderless)
-                .help("Open App Store Connect")
-                .disabled(row.snapshot?.appStoreConnectURL == nil)
-
-                Button {
-                    onOpenRepository()
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .buttonStyle(.borderless)
-                .help("Open local repository")
             }
 
             if let snapshot = row.snapshot {
