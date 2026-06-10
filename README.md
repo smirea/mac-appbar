@@ -4,7 +4,7 @@ A macOS menu bar dashboard for deployment status.
 
 The app tracks App Store deployment/build health for apps built through Xcode Cloud. The first tracked app is Memeforge, whose source lives at `/Users/stefan/code/ios-keyboard` and whose GitHub remote is `smirea/memeforge`.
 
-Clicking the menu bar `A` opens a compact deployment popup with the latest Xcode Cloud build number, status, branch, date, App Store build processing state when available, workflow rules, and a manual build button.
+Clicking the menu bar compass icon opens a compact deployment popup with the latest Xcode Cloud build number, status, branch, date, App Store build processing state when available, workflow rules, and a manual build button.
 
 ## Infrastructure
 
@@ -27,7 +27,9 @@ The GitHub workflow stores `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER
 
 ## Local Credentials
 
-Create `~/.config/mac-appbar/app-store-connect.env`:
+This repo is set up as the `mac-appbar` project in `env-manager`. The local env-manager files contain the known Xcode Cloud workflow ID, default branch, and local private-key path. They do not contain the App Store Connect key ID or issuer ID because those values are stored in GitHub secrets for `smirea/memeforge`, and GitHub does not allow reading secret values back.
+
+Fill the missing values in `.env.local` or create `~/.config/mac-appbar/app-store-connect.env`:
 
 ```sh
 mkdir -p ~/.config/mac-appbar
@@ -42,7 +44,13 @@ APP_STORE_CONNECT_ISSUER_ID=your-issuer-id
 APP_STORE_CONNECT_PRIVATE_KEY_PATH=/Users/stefan/code/app-store-connect-api-key.p8
 ```
 
-The app also accepts the same values from the process environment. Do not commit App Store Connect keys or private key contents.
+Then sync:
+
+```sh
+env-manager up --project mac-appbar
+```
+
+The app reads the process environment, `~/.config/mac-appbar/app-store-connect.env`, and this repo's `.env.local`. Do not commit App Store Connect keys or private key contents.
 
 Build the app:
 
@@ -66,7 +74,7 @@ Bartender does not expose a documented push-style API for another app to tell it
 
 `~/.cache/mac-appbar/bartender-state.json`
 
-MacAppBar writes `needs_attention: true` when a build is running, fails, errors, or when the tracked deployment status changes. The menu bar icon also changes from `a.circle` to `a.circle.fill` until `Mark Seen` is clicked.
+MacAppBar writes `needs_attention: true` when a build is running, fails, errors, or when the tracked deployment status changes. The menu bar icon also changes from `safari` to `safari.fill` until `Mark Seen` is clicked.
 
 Use this AppleScript as a Bartender trigger condition:
 

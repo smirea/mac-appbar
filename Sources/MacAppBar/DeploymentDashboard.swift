@@ -16,7 +16,7 @@ final class DeploymentDashboard: ObservableObject {
     private let lastSignatureKey = "lastStatusSignature"
 
     var menuBarSystemImage: String {
-        needsAttention ? "a.circle.fill" : "a.circle"
+        needsAttention ? "safari.fill" : "safari"
     }
 
     init() {

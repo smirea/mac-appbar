@@ -435,10 +435,22 @@ struct AppStoreConnectClient: Sendable {
 
 private enum EnvFile {
     static func values() -> [String: String] {
-        let path = ("~/.config/mac-appbar/app-store-connect.env" as NSString).expandingTildeInPath
-        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else {
-            return [:]
+        [
+            "~/.config/mac-appbar/app-store-connect.env",
+            "/Users/stefan/code/mac-appbar/.env.local",
+            "/Users/stefan/code/mac-appbar/.env",
+        ].reduce(into: [:]) { values, rawPath in
+            let path = (rawPath as NSString).expandingTildeInPath
+            guard let content = try? String(contentsOfFile: path, encoding: .utf8) else {
+                return
+            }
+            for (key, value) in parse(content) where values[key] == nil {
+                values[key] = value
+            }
         }
+    }
+
+    private static func parse(_ content: String) -> [String: String] {
         return content.split(whereSeparator: \.isNewline).reduce(into: [:]) { values, rawLine in
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             guard !line.isEmpty, !line.hasPrefix("#"), let separator = line.firstIndex(of: "=") else {
@@ -446,8 +458,25 @@ private enum EnvFile {
             }
             let key = line[..<separator].trimmingCharacters(in: .whitespaces)
             let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
-            values[String(key)] = stripQuotes(String(value))
+            values[String(key)] = stripQuotes(stripInlineComment(String(value)))
         }
+    }
+
+    private static func stripInlineComment(_ value: String) -> String {
+        var quotedBy: Character?
+        for index in value.indices {
+            let character = value[index]
+            if character == "'" || character == "\"" {
+                if quotedBy == character {
+                    quotedBy = nil
+                } else if quotedBy == nil {
+                    quotedBy = character
+                }
+            } else if character == "#", quotedBy == nil {
+                return value[..<index].trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return value.trimmingCharacters(in: .whitespaces)
     }
 
     private static func stripQuotes(_ value: String) -> String {
