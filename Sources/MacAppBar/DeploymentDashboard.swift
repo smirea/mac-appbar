@@ -304,6 +304,9 @@ struct AppStatusRow: View {
                     Text(row.app.githubRepository)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    rowDetails
+                        .padding(.top, 8)
                 }
 
                 Spacer()
@@ -314,29 +317,32 @@ struct AppStatusRow: View {
 
                 actionButtons
             }
-
-            if let snapshot = row.snapshot {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(snapshot.rules, id: \.self) { rule in
-                        Text(rule)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } else if let error = row.error {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .textSelection(.enabled)
-            } else {
-                Text("Loading")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
         .padding(12)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var rowDetails: some View {
+        if let snapshot = row.snapshot {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(snapshot.rules, id: \.self) { rule in
+                    Text(rule)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else if let error = row.error {
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .textSelection(.enabled)
+        } else {
+            Text("Loading")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var actionButtons: some View {
