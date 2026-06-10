@@ -90,7 +90,7 @@ Bartender does not expose a documented push-style API for another app to tell it
 
 `~/.cache/mac-appbar/bartender-state.json`
 
-MacAppBar writes `needs_attention: true` when a build is running, fails, errors, or when the tracked deployment status changes. The menu bar icon also changes from `safari` to `safari.fill` until `Mark Seen` is clicked.
+MacAppBar writes `needs_attention: true` when the latest deployment state differs from the last state seen in the popup. The state file stores both `current_signature` and `seen_signature`, so the app can compute attention correctly after boot. Opening the popup marks the current state as seen automatically. The menu bar icon changes from `safari` to `safari.fill` while attention is needed.
 
 Use this AppleScript as a Bartender trigger condition:
 

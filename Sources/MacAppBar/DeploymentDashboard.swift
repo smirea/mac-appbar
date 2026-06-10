@@ -13,16 +13,19 @@ final class DeploymentDashboard: ObservableObject {
 
     private let apps = TrackedApp.apps
     private let bartenderState = BartenderStateStore()
-    private let lastSignatureKey = "lastStatusSignature"
+    private var lastSeenSignature: String?
+    private var popupIsOpen = false
 
     var menuBarSystemImage: String {
         needsAttention ? "safari.fill" : "safari"
     }
 
     init() {
+        let storedState = bartenderState.read()
         rows = apps.map { AppRowState(app: $0, snapshot: nil, error: nil, isStartingBuild: false) }
         launchAtLogin = LoginItemController.isEnabled
-        needsAttention = bartenderState.readNeedsAttention()
+        needsAttention = storedState.needsAttention
+        lastSeenSignature = storedState.seenSignature ?? (storedState.needsAttention ? nil : storedState.currentSignature)
         Task { await startPolling() }
     }
 
@@ -81,9 +84,25 @@ final class DeploymentDashboard: ObservableObject {
         launchAtLogin = LoginItemController.isEnabled
     }
 
-    func markSeen() {
+    func popupOpened() {
+        popupIsOpen = true
+        markCurrentStateSeen()
+    }
+
+    func popupClosed() {
+        popupIsOpen = false
+    }
+
+    private func markCurrentStateSeen() {
+        let signature = statusSignature(for: rows)
+        lastSeenSignature = signature
         needsAttention = false
-        bartenderState.write(needsAttention: false, rows: rows)
+        bartenderState.write(
+            needsAttention: false,
+            currentSignature: signature,
+            seenSignature: lastSeenSignature,
+            rows: rows
+        )
     }
 
     private func startPolling() async {
@@ -102,24 +121,30 @@ final class DeploymentDashboard: ObservableObject {
     }
 
     private func updateAttentionState(from rows: [AppRowState]) {
-        let signature = rows.map(\.statusSignature).joined(separator: "|")
-        let previous = UserDefaults.standard.string(forKey: lastSignatureKey)
-        let changed = previous != nil && previous != signature
-        let hasProblem = rows.contains { row in
-            if row.error != nil {
-                return true
-            }
-            guard let snapshot = row.snapshot else {
-                return false
-            }
-            return snapshot.statusColor == .red || snapshot.statusColor == .yellow
+        let signature = statusSignature(for: rows)
+
+        if popupIsOpen {
+            lastSeenSignature = signature
+            needsAttention = false
+        } else if let lastSeenSignature {
+            needsAttention = signature != lastSeenSignature
+        } else if needsAttention {
+            needsAttention = true
+        } else {
+            lastSeenSignature = signature
+            needsAttention = false
         }
 
-        if changed || hasProblem {
-            needsAttention = true
-        }
-        UserDefaults.standard.set(signature, forKey: lastSignatureKey)
-        bartenderState.write(needsAttention: needsAttention, rows: rows)
+        bartenderState.write(
+            needsAttention: needsAttention,
+            currentSignature: signature,
+            seenSignature: lastSeenSignature,
+            rows: rows
+        )
+    }
+
+    private func statusSignature(for rows: [AppRowState]) -> String {
+        rows.map(\.statusSignature).joined(separator: "|")
     }
 }
 
@@ -189,12 +214,6 @@ struct DeploymentDashboardView: View {
                 }
                 .disabled(model.isRefreshing)
 
-                if model.needsAttention {
-                    Button("Mark Seen") {
-                        model.markSeen()
-                    }
-                }
-
                 Spacer()
 
                 Button("Quit") {
@@ -204,6 +223,12 @@ struct DeploymentDashboardView: View {
             }
         }
         .padding(16)
+        .onAppear {
+            model.popupOpened()
+        }
+        .onDisappear {
+            model.popupClosed()
+        }
     }
 
     private var header: some View {
