@@ -17,10 +17,6 @@ final class DeploymentDashboard: ObservableObject {
     private var lastBartenderShowSignature: String?
     private var popupIsOpen = false
 
-    var menuBarSystemImage: String {
-        needsAttention ? "safari.fill" : "safari"
-    }
-
     init() {
         let storedState = bartenderState.read()
         rows = apps.map { AppRowState(app: $0, snapshot: nil, error: nil, isStartingBuild: false) }

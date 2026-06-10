@@ -10,7 +10,7 @@ struct MacAppBarApp: App {
             DeploymentDashboardView(model: dashboard)
                 .frame(width: 460)
         } label: {
-            Label("MacAppBar", systemImage: dashboard.menuBarSystemImage)
+            MenuBarIconView(needsAttention: dashboard.needsAttention)
         }
         .menuBarExtraStyle(.window)
     }

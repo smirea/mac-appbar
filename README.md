@@ -4,11 +4,13 @@ A macOS menu bar dashboard for deployment status.
 
 The app tracks App Store deployment/build health for apps built through Xcode Cloud. The first tracked app is Memeforge, whose source lives at `/Users/stefan/code/ios-keyboard` and whose GitHub remote is `smirea/memeforge`.
 
-Clicking the menu bar compass icon opens a compact deployment popup with the latest Xcode Cloud build number, status, branch, date, App Store build processing state when available, workflow rules, and a manual build button.
+Clicking the App Store compass icon opens a compact deployment popup with the latest Xcode Cloud build number, status, branch, date, App Store build processing state when available, workflow rules, and a manual build button.
 
 ## Infrastructure
 
-The app uses SwiftUI `MenuBarExtra` with window-style content and builds as a small Swift Package Manager executable. `scripts/build-app.sh` wraps the release binary into `.build/release/MacAppBar.app` and sets `LSUIElement` so it runs as a menu bar agent instead of a Dock app.
+The app uses SwiftUI `MenuBarExtra` with window-style content and builds as a small Swift Package Manager executable. `scripts/build-app.sh` wraps the release binary into `.build/release/MacAppBar.app`, adds the app icon, and sets `LSUIElement` so it runs as a menu bar agent instead of a Dock app.
+
+The App Store-style compass icon comes from the SVG Logos `Apple App Store` icon through Iconify/shadcn, listed as CC0.
 
 Status and actions come from the App Store Connect API:
 
@@ -90,7 +92,7 @@ Bartender does not expose a documented push-style API for another app to tell it
 
 `~/.cache/mac-appbar/bartender-state.json`
 
-MacAppBar writes `needs_attention: true` when the latest deployment state differs from the last state seen in the popup. The state file stores both `current_signature` and `seen_signature`, so the app can compute attention correctly after boot. Opening the popup marks the current state as seen automatically. The menu bar icon changes from `safari` to `safari.fill` while attention is needed.
+MacAppBar writes `needs_attention: true` when the latest deployment state differs from the last state seen in the popup. The state file stores both `current_signature` and `seen_signature`, so the app can compute attention correctly after boot. Opening the popup marks the current state as seen automatically. The menu bar icon switches from muted to full color while attention is needed.
 
 When unread state is detected, MacAppBar also asks Bartender to show its menu item with Bartender's AppleScript `show` command. The menu item ID is `dev.stefan.MacAppBar-Item-0`.
 
