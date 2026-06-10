@@ -92,11 +92,19 @@ Bartender does not expose a documented push-style API for another app to tell it
 
 MacAppBar writes `needs_attention: true` when the latest deployment state differs from the last state seen in the popup. The state file stores both `current_signature` and `seen_signature`, so the app can compute attention correctly after boot. Opening the popup marks the current state as seen automatically. The menu bar icon changes from `safari` to `safari.fill` while attention is needed.
 
-Use this AppleScript as a Bartender trigger condition:
+When unread state is detected, MacAppBar also asks Bartender to show its menu item with Bartender's AppleScript `show` command. The menu item ID is `dev.stefan.MacAppBar-Item-0`.
+
+For the most reliable setup, keep MacAppBar hidden in Bartender and add a trigger that shows it while this script condition is true:
+
+```sh
+/Users/stefan/code/mac-appbar/scripts/bartender-should-show.sh
+```
+
+If Bartender asks for AppleScript instead of shell script, use this wrapper:
 
 ```applescript
 try
-	set stateJSON to do shell script "/usr/bin/python3 - <<'PY'\nimport json\nfrom pathlib import Path\npath = Path.home() / '.cache/mac-appbar/bartender-state.json'\nprint('true' if path.exists() and json.loads(path.read_text()).get('needs_attention') else 'false')\nPY"
+	set stateJSON to do shell script "/Users/stefan/code/mac-appbar/scripts/bartender-should-show.sh"
 	return stateJSON is "true"
 on error
 	return false

@@ -14,6 +14,7 @@ final class DeploymentDashboard: ObservableObject {
     private let apps = TrackedApp.apps
     private let bartenderState = BartenderStateStore()
     private var lastSeenSignature: String?
+    private var lastBartenderShowSignature: String?
     private var popupIsOpen = false
 
     var menuBarSystemImage: String {
@@ -133,6 +134,13 @@ final class DeploymentDashboard: ObservableObject {
         } else {
             lastSeenSignature = signature
             needsAttention = false
+        }
+
+        if needsAttention, lastBartenderShowSignature != signature {
+            lastBartenderShowSignature = signature
+            BartenderController.showMenuBarItem()
+        } else if !needsAttention {
+            lastBartenderShowSignature = nil
         }
 
         bartenderState.write(
