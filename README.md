@@ -10,10 +10,10 @@ Build the app:
 ./scripts/build-app.sh
 ```
 
-Run it:
+Run it, building first if needed:
 
 ```sh
-open .build/release/MacAppBar.app
+./scripts/run.sh
 ```
 
 The menu bar item uses a generic `A` symbol. Clicking it opens a dropdown with a todo message and a Quit command.
