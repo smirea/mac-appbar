@@ -13,4 +13,4 @@ if [[ ! -x "$executable_path" ]]; then
     "$script_dir/build-app.sh"
 fi
 
-open "$bundle_path"
+"$executable_path" >/dev/null 2>&1 &

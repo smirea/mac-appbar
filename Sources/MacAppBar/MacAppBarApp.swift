@@ -3,15 +3,13 @@ import SwiftUI
 
 @main
 struct MacAppBarApp: App {
+    @StateObject private var dashboard = DeploymentDashboard()
+
     var body: some Scene {
         MenuBarExtra("MacAppBar", systemImage: "a.circle") {
-            Text("Todo: add your first menu bar action")
-            Divider()
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            DeploymentDashboardView(model: dashboard)
+                .frame(width: 460)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
     }
 }

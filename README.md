@@ -1,8 +1,48 @@
 # MacAppBar
 
-A tiny macOS menu bar app starter.
+A macOS menu bar dashboard for deployment status.
 
-It uses SwiftUI `MenuBarExtra`, which is the current first-party API for simple menu bar extras on macOS 13 and newer. The app is built with Swift Package Manager to keep the repo small, then `scripts/build-app.sh` wraps the release executable in a local `.app` bundle with `LSUIElement` so it runs as a menu bar agent instead of showing in the Dock.
+The app tracks App Store deployment/build health for apps built through Xcode Cloud. The first tracked app is Memeforge, whose source lives at `/Users/stefan/code/ios-keyboard` and whose GitHub remote is `smirea/memeforge`.
+
+Clicking the menu bar `A` opens a compact deployment popup with the latest Xcode Cloud build number, status, branch, date, App Store build processing state when available, workflow rules, and a manual build button.
+
+## Infrastructure
+
+The app uses SwiftUI `MenuBarExtra` with window-style content and builds as a small Swift Package Manager executable. `scripts/build-app.sh` wraps the release binary into `.build/release/MacAppBar.app` and sets `LSUIElement` so it runs as a menu bar agent instead of a Dock app.
+
+Status and actions come from the App Store Connect API:
+
+- `GET /v1/ciWorkflows/{id}` reads workflow metadata and rules.
+- `GET /v1/ciWorkflows/{id}/buildRuns` reads the latest Xcode Cloud build.
+- `POST /v1/ciBuildRuns` starts a manual Xcode Cloud build.
+
+The current Memeforge config was pulled from `/Users/stefan/code/ios-keyboard`:
+
+- Xcode Cloud workflow ID: `8A2FE4FD-B115-4866-A097-B6D5247F8ED0`
+- Default branch: `master`
+- GitHub workflow wrapper: `.github/workflows/testflight-internal.yml`
+- Local default private key path: `/Users/stefan/code/app-store-connect-api-key.p8`
+
+The GitHub workflow stores `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, and `APP_STORE_CONNECT_PRIVATE_KEY` as GitHub secrets, then calls `scripts/deploy.sh`. GitHub secret values cannot be read back, so the menu bar app needs equivalent App Store Connect credentials configured locally for status polling and manual builds.
+
+## Local Credentials
+
+Create `~/.config/mac-appbar/app-store-connect.env`:
+
+```sh
+mkdir -p ~/.config/mac-appbar
+$EDITOR ~/.config/mac-appbar/app-store-connect.env
+```
+
+Use this format:
+
+```env
+APP_STORE_CONNECT_KEY_ID=your-key-id
+APP_STORE_CONNECT_ISSUER_ID=your-issuer-id
+APP_STORE_CONNECT_PRIVATE_KEY_PATH=/Users/stefan/code/app-store-connect-api-key.p8
+```
+
+The app also accepts the same values from the process environment. Do not commit App Store Connect keys or private key contents.
 
 Build the app:
 
@@ -15,5 +55,3 @@ Run it, building first if needed:
 ```sh
 ./scripts/run.sh
 ```
-
-The menu bar item uses a generic `A` symbol. Clicking it opens a dropdown with a todo message and a Quit command.

@@ -2,3 +2,5 @@
 .swiftpm/
 DerivedData/
 *.xcuserdata/
+.env
+.env.*
