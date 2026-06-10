@@ -6,8 +6,10 @@ struct MenuBarIconView: View {
 
     var body: some View {
         Image(nsImage: needsAttention ? Self.unreadIcon : Self.icon)
+            .renderingMode(.template)
             .resizable()
             .frame(width: 18, height: 18)
+            .foregroundStyle(.primary)
             .opacity(needsAttention ? 1 : 0.78)
             .accessibilityLabel("MacAppBar")
     }
@@ -28,6 +30,7 @@ struct MenuBarIconView: View {
             return nil
         }
         image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
         return image
     }
 }

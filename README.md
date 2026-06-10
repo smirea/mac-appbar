@@ -92,7 +92,7 @@ Bartender does not expose a documented push-style API for another app to tell it
 
 `~/.cache/mac-appbar/bartender-state.json`
 
-MacAppBar writes `needs_attention: true` when the latest deployment state differs from the last state seen in the popup. The state file stores both `current_signature` and `seen_signature`, so the app can compute attention correctly after boot. Opening the popup marks the current state as seen automatically. The menu bar icon inverts from black to white while attention is needed.
+MacAppBar writes `needs_attention: true` when the latest deployment state differs from the last state seen in the popup. The state file stores both `current_signature` and `seen_signature`, so the app can compute attention correctly after boot. Opening the popup marks the current state as seen automatically. The menu bar icon keeps the system menu bar color while attention is needed, but inverts the alpha mask so the compass becomes transparent inside a solid icon.
 
 When unread state is detected, MacAppBar also asks Bartender to show its menu item with Bartender's AppleScript `show` command. The menu item ID is `dev.stefan.MacAppBar-Item-0`.
 
