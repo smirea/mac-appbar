@@ -17,6 +17,7 @@ mkdir -p "$resources_path"
 cp "$executable_path" "$bundle_path/Contents/MacOS/$app_name"
 cp "Assets/AppStoreIcon.icns" "$resources_path/AppStoreIcon.icns"
 cp "Assets/AppStoreMenuIcon.png" "$resources_path/AppStoreMenuIcon.png"
+cp "Assets/AppStoreMenuIconUnread.png" "$resources_path/AppStoreMenuIconUnread.png"
 
 /usr/libexec/PlistBuddy -c "Clear dict" "$bundle_path/Contents/Info.plist" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :CFBundleDevelopmentRegion string en" "$bundle_path/Contents/Info.plist"

@@ -5,21 +5,29 @@ struct MenuBarIconView: View {
     let needsAttention: Bool
 
     var body: some View {
-        Image(nsImage: Self.icon)
+        Image(nsImage: needsAttention ? Self.unreadIcon : Self.icon)
             .resizable()
             .frame(width: 18, height: 18)
-            .saturation(needsAttention ? 1 : 0.35)
-            .opacity(needsAttention ? 1 : 0.85)
+            .opacity(needsAttention ? 1 : 0.78)
             .accessibilityLabel("MacAppBar")
     }
 
     private static let icon: NSImage = {
-        if let url = Bundle.main.url(forResource: "AppStoreMenuIcon", withExtension: "png"),
-           let image = NSImage(contentsOf: url) {
-            image.size = NSSize(width: 18, height: 18)
-            return image
-        }
-
-        return NSImage(systemSymbolName: "safari", accessibilityDescription: "MacAppBar") ?? NSImage()
+        image(named: "AppStoreMenuIcon") ?? fallback
     }()
+
+    private static let unreadIcon: NSImage = {
+        image(named: "AppStoreMenuIconUnread") ?? fallback
+    }()
+
+    private static let fallback = NSImage(systemSymbolName: "app", accessibilityDescription: "MacAppBar") ?? NSImage()
+
+    private static func image(named name: String) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png"),
+              let image = NSImage(contentsOf: url) else {
+            return nil
+        }
+        image.size = NSSize(width: 18, height: 18)
+        return image
+    }
 }
