@@ -489,9 +489,38 @@ private enum EnvFile {
                 return
             }
             for (key, value) in parse(content) where values[key] == nil {
-                values[key] = value
+                values[key] = resolvedValue(value, for: key, envFilePath: path)
             }
         }
+    }
+
+    private static func resolvedValue(_ value: String, for key: String, envFilePath: String) -> String {
+        guard shouldResolveAsPath(key, value) else {
+            return value
+        }
+        if value.hasPrefix("/") || value.hasPrefix("~") {
+            return (value as NSString).expandingTildeInPath
+        }
+        return URL(fileURLWithPath: envFilePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent(value)
+            .standardizedFileURL
+            .path
+    }
+
+    private static func shouldResolveAsPath(_ key: String, _ value: String) -> Bool {
+        guard !value.isEmpty else {
+            return false
+        }
+        if value.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("-----BEGIN") {
+            return false
+        }
+        return [
+            "APP_STORE_CONNECT_PRIVATE_KEY",
+            "ASC_KEY_PATH",
+            "APP_STORE_CONNECT_PRIVATE_KEY_PATH",
+            "APP_STORE_CONNECT_API_KEY_PATH",
+        ].contains(key)
     }
 
     private static func parse(_ content: String) -> [String: String] {
